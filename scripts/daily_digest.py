@@ -82,6 +82,7 @@ def search_arxiv() -> list[dict]:
                     "url": link,
                     "date": published,
                     "categories": ", ".join(categories[:3]),
+                    "venue": "arXiv preprint",
                 })
         except Exception as e:
             print(f"[arXiv] Query '{query}' failed: {e}")
@@ -100,7 +101,7 @@ def search_semantic_scholar() -> list[dict]:
         params = urllib.parse.urlencode({
             "query": query,
             "limit": MAX_SEMANTIC,
-            "fields": "title,authors,abstract,url,publicationDate,externalIds",
+            "fields": "title,authors,abstract,url,publicationDate,externalIds,venue,publicationVenue",
             "year": f"{datetime.now().year - 1}-",
             "sort": "publicationDate:desc",
         })
@@ -123,6 +124,11 @@ def search_semantic_scholar() -> list[dict]:
 
                 authors = [a.get("name", "") for a in (paper.get("authors") or [])[:5]]
 
+                # 학회/venue 정보 추출
+                venue = paper.get("venue", "")
+                pub_venue = paper.get("publicationVenue", {})
+                venue_name = venue or (pub_venue.get("name", "") if pub_venue else "")
+
                 papers.append({
                     "source": "Semantic Scholar",
                     "title": paper.get("title", "Untitled"),
@@ -131,6 +137,7 @@ def search_semantic_scholar() -> list[dict]:
                     "url": link,
                     "date": paper.get("publicationDate", ""),
                     "categories": "",
+                    "venue": venue_name,
                 })
         except Exception as e:
             print(f"[Semantic Scholar] Query '{query}' failed: {e}")
@@ -187,6 +194,7 @@ def search_google_news() -> list[dict]:
                     "url": link,
                     "date": date_str,
                     "categories": "",
+                    "venue": source_name,
                 })
         except Exception as e:
             print(f"[News] Query '{query}' failed: {e}")
@@ -227,6 +235,7 @@ def search_google_scholar() -> list[dict]:
                     "url": result.get("pub_url", result.get("eprint_url", "")),
                     "date": bib.get("pub_year", ""),
                     "categories": bib.get("venue", ""),
+                    "venue": bib.get("venue", ""),
                 })
         except Exception as e:
             print(f"[Scholar] Query '{query}' failed: {e}")
@@ -247,6 +256,7 @@ def summarize_with_claude(papers: list[dict]) -> str:
         paper_text += f"\n---\n[{i}] ({p['source']}) {p['title']}\n"
         paper_text += f"Authors: {p['authors']}\n"
         paper_text += f"Date: {p['date']}\n"
+        paper_text += f"Venue/Conference: {p.get('venue', 'N/A')}\n"
         paper_text += f"URL: {p['url']}\n"
         if p["abstract"]:
             paper_text += f"Abstract: {p['abstract']}\n"
@@ -258,10 +268,16 @@ def summarize_with_claude(papers: list[dict]) -> str:
 위 내용을 기반으로 GitHub Issue용 일일 다이제스트를 작성해주세요:
 
 1. **오늘의 하이라이트** (가장 중요한 2-3개를 선정해 각각 2-3문장으로 핵심 요약)
-2. **논문 목록** (제목, 저자, 한줄 요약, 링크 포함)
-3. **뉴스 목록** (있는 경우)
+2. **논문 목록** (아래 형식을 반드시 따를 것):
+   - 제목 (링크 포함)
+   - 저자
+   - **학회/출판처** (예: CoRL 2025, ICRA 2026, arXiv preprint, RSS, NeurIPS 등. Venue 정보가 있으면 반드시 명시, 없으면 "arXiv preprint"으로 표기)
+   - **출판 시기** (날짜 또는 연도. 반드시 포함)
+   - 한줄 요약
+3. **뉴스 목록** (있는 경우, 출처와 날짜 포함)
 4. **연구 트렌드 메모** (이 분야에서 눈에 띄는 동향 1-2줄)
 
+중요: 각 논문마다 학회/출판처와 출판 시기는 빠지면 안 됩니다.
 형식은 GitHub Markdown으로 작성하세요.
 COACH 프로젝트(Hamiltonian mechanics 기반 VLA correction head)와 관련성이 높은 논문은 ⭐로 표시해주세요.
 """
@@ -296,7 +312,8 @@ def _fallback_format(papers: list[dict]) -> str:
     lines = ["## 수집된 항목\n"]
     for p in papers:
         lines.append(f"### [{p['title']}]({p['url']})")
-        lines.append(f"- **출처**: {p['source']} | **날짜**: {p['date']}")
+        venue = p.get('venue', '')
+        lines.append(f"- **출처**: {p['source']} | **학회**: {venue or 'N/A'} | **날짜**: {p['date']}")
         if p["authors"]:
             lines.append(f"- **저자**: {p['authors']}")
         if p["abstract"]:
