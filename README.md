@@ -89,3 +89,11 @@ schedule:
 - GitHub Actions: 무료 (public repo) / 월 2,000분 (private repo)
 - Anthropic API: 요약 1회당 약 $0.01~0.03 (Sonnet 기준)
 - 월 예상 비용: **~$1 미만**
+
+## 💰 Bounty Contribution
+
+- **Task:** 📄 VLA/Physical AI Daily Digest — 2026-04-27
+- **Reward:** $6
+- **Source:** GitHub-Paid
+- **Date:** 2026-04-27
+
